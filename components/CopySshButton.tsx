@@ -19,9 +19,9 @@ export function CopySshButton({ sshCommand }: { sshCommand: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="flex-1 rounded-md border border-line px-3 py-2 text-xs font-medium text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
+      className="flex-1 rounded-md border border-line px-3 py-2 text-xs font-medium text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
     >
-      {copied ? "Copied" : "Copy SSH"}
+      {copied ? "Copied ✓" : "Copy SSH"}
     </button>
   );
 }

@@ -1,20 +1,31 @@
 export type DisplayStatus = "online" | "offline" | "connecting";
 
-const STATUS_STYLES: Record<DisplayStatus, { dot: string; label: string }> = {
-  online: { dot: "bg-success", label: "Online" },
-  connecting: { dot: "bg-warning", label: "Connecting" },
-  offline: { dot: "bg-danger", label: "Offline" },
+const DOT_COLOR: Record<DisplayStatus, string> = {
+  online: "bg-success",
+  connecting: "bg-warning",
+  offline: "bg-danger",
 };
 
-export function StatusDot({ status }: { status: DisplayStatus }) {
-  const style = STATUS_STYLES[status];
+export const STATUS_LABEL: Record<DisplayStatus, string> = {
+  online: "Online",
+  connecting: "Connecting",
+  offline: "Offline",
+};
+
+export const STATUS_TEXT_COLOR: Record<DisplayStatus, string> = {
+  online: "text-success",
+  connecting: "text-warning",
+  offline: "text-danger",
+};
+
+// Renders only the colored indicator. Compose with STATUS_LABEL /
+// STATUS_TEXT_COLOR wherever the text needs to sit separately (e.g. under
+// a server name rather than beside the dot).
+export function StatusDot({ status, className = "" }: { status: DisplayStatus; className?: string }) {
   return (
-    <span className="inline-flex items-center gap-2">
-      <span
-        className={`h-2 w-2 rounded-full ${style.dot} ${status === "connecting" ? "animate-pulse" : ""}`}
-        aria-hidden
-      />
-      <span className="text-xs text-fg-muted">{style.label}</span>
-    </span>
+    <span
+      className={`inline-block h-2 w-2 shrink-0 rounded-full ${DOT_COLOR[status]} ${status === "connecting" ? "animate-pulse" : ""} ${className}`}
+      aria-hidden
+    />
   );
 }

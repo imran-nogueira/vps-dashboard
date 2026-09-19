@@ -61,17 +61,24 @@ export function DashboardClient({
   }, []);
 
   const lastUpdatedLabel = secondsAgo <= 1 ? "just now" : `${secondsAgo}s ago`;
+  const offlineCount = servers.filter((s) => s.status === "offline").length;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-10 sm:px-10">
-      <Header lastUpdatedLabel={lastUpdatedLabel} onRefresh={refresh} refreshing={refreshing} />
+      <Header
+        currentPage="dashboard"
+        status={{ totalCount: servers.length, offlineCount }}
+        lastUpdatedLabel={lastUpdatedLabel}
+        onRefresh={refresh}
+        refreshing={refreshing}
+      />
 
       <SummaryBar summary={summary} />
 
       {servers.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {servers.map((server) => (
             <ServerCard key={server.id} server={server} isRefreshing={refreshing} />
           ))}

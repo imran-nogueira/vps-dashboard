@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ServerView } from "@/lib/types";
-import { StatusDot, type DisplayStatus } from "./StatusDot";
+import { StatusDot, STATUS_LABEL, STATUS_TEXT_COLOR, type DisplayStatus } from "./StatusDot";
 import { UsageBar } from "./UsageBar";
 import { CopySshButton } from "./CopySshButton";
 
@@ -11,33 +11,36 @@ export function ServerCard({
   server: ServerView;
   isRefreshing: boolean;
 }) {
-  const sshCommand = `ssh ${server.ssh_user}@${server.ip}`;
+  const sshTarget = `${server.ssh_user}@${server.ip || "?"}`;
   const status: DisplayStatus = isRefreshing ? "connecting" : server.status;
   const hetznerUrl = server.hetzner_server_id
     ? `https://console.hetzner.cloud/projects/servers/${server.hetzner_server_id}`
     : null;
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-5 transition-colors hover:border-line-strong">
-      <div className="flex items-center justify-between">
-        <StatusDot status={status} />
+    <div className="flex flex-col gap-5 rounded-xl border border-line bg-surface p-5 transition-colors hover:border-line-strong">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <StatusDot status={status} />
+          <div className="min-w-0">
+            <h2 className="truncate text-[15px] font-medium text-fg">{server.name}</h2>
+            <p className={`text-xs ${STATUS_TEXT_COLOR[status]}`}>{STATUS_LABEL[status]}</p>
+          </div>
+        </div>
         <Link
           href={`/settings#server-${server.id}`}
-          className="text-fg-dim transition-colors hover:text-fg"
+          className="shrink-0 text-fg-dim transition-colors duration-150 hover:text-fg"
           aria-label={`Edit ${server.name}`}
         >
-          ⋮
+          ⋯
         </Link>
       </div>
 
-      <div>
-        <h2 className="truncate text-base font-medium text-fg">{server.name}</h2>
-        <p className="mt-0.5 font-mono text-sm text-fg-muted">{server.ip || "No IP set"}</p>
-      </div>
+      <p className="-mt-2 font-mono text-sm text-fg-muted">{sshTarget}</p>
 
-      {status === "offline" && <p className="text-xs text-danger">Unable to reach VPS</p>}
+      {status === "offline" && <p className="-mt-2 text-xs text-danger">Unable to reach VPS</p>}
 
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         <UsageBar label="RAM" used={server.ram.used} total={server.ram.total} />
         <UsageBar label="DISK" used={server.disk.used} total={server.disk.total} />
       </div>
@@ -51,15 +54,15 @@ export function ServerCard({
       </div>
 
       <div className="flex gap-2">
-        <CopySshButton sshCommand={sshCommand} />
+        <CopySshButton sshCommand={`ssh ${sshTarget}`} />
         {hetznerUrl && (
           <a
             href={hetznerUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 rounded-md border border-line px-3 py-2 text-center text-xs font-medium text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
+            className="flex-1 rounded-md border border-line px-3 py-2 text-center text-xs font-medium text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
           >
-            Open Hetzner
+            Open Hetzner ↗
           </a>
         )}
       </div>

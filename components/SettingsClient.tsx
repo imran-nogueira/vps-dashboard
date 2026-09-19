@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import type { ServerView } from "@/lib/types";
+import { Header } from "./Header";
 import { ServerForm, type ServerFormValues } from "./ServerForm";
 
 function errorMessage(body: unknown): string {
@@ -111,15 +111,7 @@ export function SettingsClient({ initialServers }: { initialServers: ServerView[
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-10 sm:px-10">
-      <header className="flex items-center justify-between border-b border-line pb-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-fg">Settings</h1>
-          <p className="mt-1 text-sm text-fg-muted">Manage your VPS list.</p>
-        </div>
-        <Link href="/" className="text-xs text-fg-muted transition-colors hover:text-fg">
-          Back to dashboard
-        </Link>
-      </header>
+      <Header currentPage="settings" />
 
       <section className="flex items-center gap-3">
         <button
