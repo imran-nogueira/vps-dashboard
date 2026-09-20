@@ -27,7 +27,7 @@ export function UsageBar({
     <div>
       <div className="flex items-baseline justify-between">
         <span className="text-[11px] uppercase tracking-wider text-fg-dim">{label}</span>
-        <span className="font-mono text-xs text-fg-muted">
+        <span className="font-mono text-sm text-fg-muted">
           {hasData ? `${formatNum(used)} / ${formatNum(total)} ${unit}` : "—"}
         </span>
       </div>

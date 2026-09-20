@@ -33,9 +33,7 @@ export function Header({
     ? null
     : status.totalCount === 0
       ? "No VPS yet"
-      : status.offlineCount > 0
-        ? `${status.offlineCount} system${status.offlineCount > 1 ? "s" : ""} offline`
-        : "All systems operational";
+      : `${status.totalCount - status.offlineCount} / ${status.totalCount} online`;
 
   return (
     <header className="flex flex-col gap-4 border-b border-line pb-6 sm:flex-row sm:items-start sm:justify-between">
@@ -86,7 +84,7 @@ export function Header({
             type="button"
             onClick={onRefresh}
             disabled={refreshing}
-            className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-50"
+            className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-fg-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-50"
           >
             {refreshing ? "Refreshing…" : "Refresh"}
           </button>

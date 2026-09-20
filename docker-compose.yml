@@ -1,13 +1,9 @@
 services:
   dashboard:
     build: .
-    # Host networking: shares the VPS's own network stack, so the container
-    # can reach an agent on the same machine via plain "localhost" without
-    # crossing a bridge interface that ufw would filter. There is no port
-    # mapping to configure — the app must bind to 127.0.0.1 itself (see
-    # `command` below), so it is never exposed beyond loopback.
-    network_mode: host
-    command: ["node_modules/.bin/next", "start", "-H", "127.0.0.1"]
+    ports:
+      # Bound to loopback only: reach it at http://localhost:3000.
+      - "127.0.0.1:3000:3000"
     env_file:
       - .env
     environment:

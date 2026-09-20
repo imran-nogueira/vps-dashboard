@@ -64,7 +64,7 @@ export function DashboardClient({
   const offlineCount = servers.filter((s) => s.status === "offline").length;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-10 sm:px-10">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-8 px-6 py-10 sm:px-10">
       <Header
         currentPage="dashboard"
         status={{ totalCount: servers.length, offlineCount }}
@@ -77,8 +77,15 @@ export function DashboardClient({
 
       {servers.length === 0 ? (
         <EmptyState />
+      ) : servers.length === 1 ? (
+        // A 3-column grid would squeeze a single card into one third of the
+        // row. Give it a comfortable fixed width instead of stretching it
+        // to the full page or leaving it grid-cell-sized.
+        <div className="w-full max-w-xl">
+          <ServerCard server={servers[0]} isRefreshing={refreshing} />
+        </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {servers.map((server) => (
             <ServerCard key={server.id} server={server} isRefreshing={refreshing} />
           ))}

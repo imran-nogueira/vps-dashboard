@@ -6,9 +6,9 @@ function formatGb(n: number): string {
 
 export function SummaryBar({ summary }: { summary: ServersSummary }) {
   const items = [
-    { label: "VPS", value: `${summary.count}` },
-    { label: "RAM", value: `${formatGb(summary.ramTotalGb)} GB` },
-    { label: "Used", value: `${formatGb(summary.ramUsedGb)} GB` },
+    { label: "Servers", value: `${summary.count}` },
+    { label: "Memory", value: `${formatGb(summary.ramTotalGb)} GB` },
+    { label: "In use", value: `${formatGb(summary.ramUsedGb)} GB` },
     { label: "Monthly", value: `€${summary.priceMonthlyTotal.toFixed(2)}` },
   ];
 
