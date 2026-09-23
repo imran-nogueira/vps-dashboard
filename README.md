@@ -89,10 +89,63 @@ The dashboard sends `Authorization: Bearer <token>` on every request and
 never displays the token again once saved — leave that field blank when
 editing a server to keep the existing token.
 
-## 7. Run with Docker
+## 7. Agent tunnel (recommended when the dashboard runs off-VPS)
+
+If the dashboard runs somewhere other than the VPS itself (e.g. locally via
+Docker/OrbStack), don't expose the agent's port on the public internet and
+maintain a firewall rule keyed to your IP — it breaks every time your IP
+changes. Instead, the `agent-tunnel` service in `docker-compose.yml`
+maintains a permanent SSH tunnel to the VPS, and the dashboard reaches the
+agent at `http://agent-tunnel:9090` over Docker's internal network. The
+agent's port never needs to be reachable from outside the VPS at all.
+
+Set up once per VPS:
 
 ```bash
-cp .env.example .env   # fill it in, same as step 2
+# 1. Generate a dedicated key — never reuse your personal SSH key.
+ssh-keygen -t ed25519 -f ~/.ssh/vps-dashboard-tunnel -N "" -C "vps-dashboard-agent-tunnel"
+
+# 2. On the VPS: create a locked-down user that can only forward this one port.
+ssh root@<vps-ip> bash -s <<'EOF'
+useradd --system --shell /usr/sbin/nologin --home-dir /home/tunnel --create-home tunnel
+mkdir -p /home/tunnel/.ssh && chmod 700 /home/tunnel/.ssh
+chown -R tunnel:tunnel /home/tunnel/.ssh
+EOF
+
+# 3. Authorize the key with restrictions (no shell, only this port-forward).
+PUBKEY="$(cat ~/.ssh/vps-dashboard-tunnel.pub)"
+ssh root@<vps-ip> "echo 'restrict,port-forwarding,permitopen=\"localhost:9090\" $PUBKEY' > /home/tunnel/.ssh/authorized_keys && chmod 600 /home/tunnel/.ssh/authorized_keys && chown tunnel:tunnel /home/tunnel/.ssh/authorized_keys"
+
+# 4. If the agent's port was previously opened in ufw for a specific IP, remove that rule — it's no longer needed.
+ssh root@<vps-ip> "ufw status numbered"   # find the rule number for the agent's port, then:
+ssh root@<vps-ip> "ufw delete <rule-number>"
+```
+
+Then in `.env` (this machine, never committed):
+
+```bash
+TUNNEL_HOST=<vps-ip>
+TUNNEL_SSH_KEY=/absolute/path/to/vps-dashboard-tunnel   # the private key from step 1
+```
+
+And in the dashboard's **Settings**, set that server's **Agent URL** to
+`http://agent-tunnel:9090` instead of the public IP.
+
+Verify the restriction actually holds before trusting it:
+
+```bash
+# Should print "This account is currently not available." — no shell.
+ssh -i ~/.ssh/vps-dashboard-tunnel tunnel@<vps-ip>
+
+# Should work and return {"status":"online",...}.
+ssh -f -N -i ~/.ssh/vps-dashboard-tunnel -L 9091:localhost:9090 tunnel@<vps-ip>
+curl -H "Authorization: Bearer <agent-token>" http://localhost:9091/health
+```
+
+## 8. Run with Docker
+
+```bash
+cp .env.example .env   # fill it in, same as step 2 (+ step 7 if using the agent tunnel)
 docker compose up -d --build
 ```
 
@@ -100,7 +153,7 @@ The SQLite file persists on the host at `./data/vps-dashboard.db` (bind
 mount, see `docker-compose.yml`). The dashboard is served on
 `http://localhost:3000`.
 
-## 8. Deploy on a Hetzner VPS
+## 9. Deploy on a Hetzner VPS
 
 1. Provision a small VPS (this app is light; the cheapest one is enough) and
    point a DNS record at it if you want a domain.
@@ -134,6 +187,12 @@ mount, see `docker-compose.yml`). The dashboard is served on
   if you customize the base image, keep it at `node:22` or newer.
 - **Price shows "—"**: neither a manual price nor a Hetzner-synced price is
   set for that server. Set one in Settings, or run **Sync with Hetzner**.
+- **A server using the agent tunnel goes offline**: check the tunnel itself
+  first — `docker compose logs agent-tunnel`. If it can't connect, verify
+  `TUNNEL_HOST`/`TUNNEL_SSH_KEY` in `.env` and that the VPS still has the
+  `tunnel` user and its `authorized_keys` entry (see step 7). Your own IP
+  changing is no longer a factor once the agent is behind the tunnel — that
+  was the whole point.
 
 ## Commands reference
 
