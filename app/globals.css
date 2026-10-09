@@ -1,28 +1,33 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
-  --surface: #101012;
-  --surface-hover: #17181b;
-  --line: rgba(255, 255, 255, 0.1);
-  --line-strong: rgba(255, 255, 255, 0.18);
-  --fg: #f4f4f5;
-  --fg-muted: #9a9ba3;
-  --fg-dim: #6c6d75;
-  --success: #34d399;
-  --warning: #fbbf24;
-  --danger: #f87171;
+  /* Valeurs issues des variables Figma (fichier « VPS Dashboard », v2). */
+  --background: #08090b;
+  --surface: #0f1114;
+  --surface-raised: #16191e;
+  --surface-hover: #16191e;
+  --line: #1c2026;
+  --line-strong: #2a3038;
+  --fg: #eceef1;
+  --fg-muted: #9097a1;
+  --fg-dim: #5b626c;
+  --accent: #8fa9c9;
+  --success: #6fbf98;
+  --warning: #d4a85a;
+  --danger: #d9716b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
   --color-surface-hover: var(--surface-hover);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-fg: var(--fg);
   --color-fg-muted: var(--fg-muted);
   --color-fg-dim: var(--fg-dim);
+  --color-accent: var(--accent);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);

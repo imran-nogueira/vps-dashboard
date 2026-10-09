@@ -13,7 +13,7 @@ export const STATUS_LABEL: Record<DisplayStatus, string> = {
 };
 
 export const STATUS_TEXT_COLOR: Record<DisplayStatus, string> = {
-  online: "text-success",
+  online: "text-fg-muted",
   connecting: "text-warning",
   offline: "text-danger",
 };

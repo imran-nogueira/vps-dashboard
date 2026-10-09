@@ -110,8 +110,12 @@ export function SettingsClient({ initialServers }: { initialServers: ServerView[
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-10 sm:px-10">
+    <>
       <Header currentPage="settings" />
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 pb-16 pt-11 sm:px-10">
+        <h1 className="text-[28px] font-medium leading-[34px] tracking-[-0.02em] text-fg">
+          Settings
+        </h1>
 
       <section className="flex items-center gap-3">
         <button
@@ -195,6 +199,7 @@ export function SettingsClient({ initialServers }: { initialServers: ServerView[
           </button>
         )}
       </section>
-    </div>
+      </main>
+    </>
   );
 }

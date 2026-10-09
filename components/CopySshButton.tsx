@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+// Bloc « $ ssh user@ip » avec un bouton Copy aligné à droite.
 export function CopySshButton({ sshCommand }: { sshCommand: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -16,14 +17,23 @@ export function CopySshButton({ sshCommand }: { sshCommand: string }) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors duration-150 hover:bg-surface-hover ${
-        copied ? "border-success/40 text-success" : "border-line-strong text-fg"
-      }`}
-    >
-      {copied ? "Copied ✓" : "Copy SSH"}
-    </button>
+    <div className="flex w-full items-center justify-between gap-3 rounded-lg border border-line bg-background px-3 py-2.5 font-mono">
+      <div className="flex min-w-0 gap-2 text-xs leading-4">
+        <span className="text-fg-dim" aria-hidden>
+          $
+        </span>
+        <span className="truncate text-fg">{sshCommand}</span>
+      </div>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className={`shrink-0 text-[11px] leading-[14px] transition-colors duration-150 ${
+          copied ? "text-success" : "text-fg-muted hover:text-fg"
+        }`}
+        aria-label={copied ? "Copied" : `Copy ${sshCommand}`}
+      >
+        {copied ? "Copied ✓" : "Copy"}
+      </button>
+    </div>
   );
 }
