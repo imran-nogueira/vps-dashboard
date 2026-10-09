@@ -72,7 +72,11 @@ export function SummaryBar({
           />
         </div>
       </Cell>
-      <Cell label="Monthly" value={`€${summary.priceMonthlyTotal.toFixed(2)}`} detail="per month" />
+      <Cell
+        label="Monthly"
+        value={`€${summary.priceMonthlyTotal.toFixed(2)}`}
+        detail={`€${(summary.priceMonthlyTotal * 12).toFixed(2)} per year`}
+      />
     </div>
   );
 }

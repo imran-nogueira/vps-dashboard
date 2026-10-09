@@ -23,8 +23,8 @@ export function ServerCard({
 
   const specs = [
     server.vcpu !== null ? `${server.vcpu} vCPU` : null,
-    server.ram.total !== null ? `${formatGb(server.ram.total)} GB` : null,
-    server.disk.total !== null ? `${formatGb(server.disk.total)} GB` : null,
+    server.specs.ramGb !== null ? `${formatGb(server.specs.ramGb)} GB` : null,
+    server.specs.diskGb !== null ? `${formatGb(server.specs.diskGb)} GB` : null,
     server.datacenter,
   ].filter(Boolean);
 

@@ -35,6 +35,7 @@ function makeView(overrides: Partial<ServerView> = {}): ServerView {
     datacenter: "fsn1-dc14",
     price_monthly: null,
     status: "online",
+    specs: { ramGb: 4, diskGb: 40 },
     ram: { used: 2, total: 4 },
     disk: { used: 10, total: 40 },
     uptime: 100,

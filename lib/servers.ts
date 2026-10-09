@@ -40,6 +40,10 @@ export function rowToView(row: ServerRow, health: AgentHealth | null): ServerVie
     datacenter: row.datacenter,
     price_monthly: effectivePrice(row),
     status: health ? "online" : "offline",
+    specs: {
+      ramGb: row.ram_total_gb ?? health?.ram.total ?? null,
+      diskGb: row.disk_total_gb ?? health?.disk.total ?? null,
+    },
     ram: {
       used: health?.ram.used ?? null,
       total: health?.ram.total ?? row.ram_total_gb,
@@ -86,7 +90,8 @@ function round2(n: number): number {
 }
 
 export function summarize(views: ServerView[]): ServersSummary {
-  const ramTotalGb = views.reduce((acc, v) => acc + (v.ram.total ?? 0), 0);
+  // Capacité du plan (DB), pas le total vu par l'agent : 4 GB et non 3.7.
+  const ramTotalGb = views.reduce((acc, v) => acc + (v.specs.ramGb ?? v.ram.total ?? 0), 0);
   const ramUsedGb = views.reduce((acc, v) => acc + (v.ram.used ?? 0), 0);
   const priceMonthlyTotal = views.reduce((acc, v) => acc + (v.price_monthly ?? 0), 0);
   return {

@@ -44,6 +44,10 @@ export interface ServerView {
   datacenter: string | null;
   price_monthly: number | null;
   status: ServerStatus;
+  // Capacité du plan, stable quel que soit l'état de l'agent (DB d'abord).
+  // L'agent mesure la RAM vue par le noyau (3.7 GB sur un plan à 4 GB) :
+  // bien pour les barres d'usage, pas pour afficher la spec du serveur.
+  specs: { ramGb: number | null; diskGb: number | null };
   ram: { used: number | null; total: number | null };
   disk: { used: number | null; total: number | null };
   uptime: number | null;

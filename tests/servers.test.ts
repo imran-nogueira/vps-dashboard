@@ -68,10 +68,27 @@ describe("rowToView (merge live/cache)", () => {
     expect(view.uptime).toBeNull();
   });
 
+  it("keeps the plan specs from the DB even when the agent reports a different total", () => {
+    const view = rowToView(makeRow({ ram_total_gb: 4, disk_total_gb: 40 }), {
+      ...health,
+      ram: { used: 1.8, total: 3.7 },
+      disk: { used: 18, total: 38.2 },
+    });
+    expect(view.specs).toEqual({ ramGb: 4, diskGb: 40 });
+    expect(view.ram).toEqual({ used: 1.8, total: 3.7 });
+    expect(view.disk).toEqual({ used: 18, total: 38.2 });
+  });
+
+  it("falls back to the agent totals for specs when the DB has none", () => {
+    const view = rowToView(makeRow({ ram_total_gb: null, disk_total_gb: null }), health);
+    expect(view.specs).toEqual({ ramGb: 4, diskGb: 40 });
+  });
+
   it("never throws or drops other fields when a row has no cached totals yet", () => {
     const view = rowToView(makeRow({ ram_total_gb: null, disk_total_gb: null }), null);
     expect(view.ram).toEqual({ used: null, total: null });
     expect(view.disk).toEqual({ used: null, total: null });
+    expect(view.specs).toEqual({ ramGb: null, diskGb: null });
   });
 });
 
@@ -97,5 +114,27 @@ describe("summarize", () => {
     expect(summary.ramTotalGb).toBe(12);
     expect(summary.ramUsedGb).toBe(1.8);
     expect(summary.priceMonthlyTotal).toBe(6.59);
+  });
+
+  it("sums the plan RAM from the DB, not the slightly lower total the agent reports", () => {
+    const views = [
+      rowToView(makeRow({ id: 1, ram_total_gb: 4 }), {
+        status: "online",
+        ram: { used: 1.9, total: 3.7 },
+        disk: { used: 14, total: 40 },
+        uptime: 100,
+      }),
+      // No plan size in the DB yet: falls back to the agent's total.
+      rowToView(makeRow({ id: 2, ram_total_gb: null }), {
+        status: "online",
+        ram: { used: 5.4, total: 7.6 },
+        disk: { used: 66, total: 80 },
+        uptime: 100,
+      }),
+    ];
+
+    const summary = summarize(views);
+    expect(summary.ramTotalGb).toBe(11.6);
+    expect(summary.ramUsedGb).toBe(7.3);
   });
 });
