@@ -42,5 +42,4 @@ yarn-error.log*
 next-env.d.ts
 
 # sqlite data (Docker volume mount target)
-/data/*.db
-/data/*.db-*
+/data/
