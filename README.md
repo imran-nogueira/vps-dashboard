@@ -1,4 +1,4 @@
-# VPS Dashboard
+<picture><source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.png"><img alt="vps-dashboard — A single page showing status, memory, disk and monthly cost of a Hetzner server fleet." src="assets/banner-light.png"></picture>
 
 A single, minimal page to see all your Hetzner VPS at a glance: online/offline,
 RAM used/total, disk used/total, monthly price, and a ready-to-copy SSH command.
