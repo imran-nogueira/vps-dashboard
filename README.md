@@ -204,3 +204,7 @@ pnpm build            # production build
 pnpm start            # run the production build locally
 docker compose up -d --build   # build and run with Docker
 ```
+
+## License
+
+MIT

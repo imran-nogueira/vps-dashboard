@@ -76,7 +76,7 @@ export function ServerForm({
           className={inputClass}
           value={values.ip}
           onChange={(e) => update("ip", e.target.value)}
-          placeholder="188.245.10.20"
+          placeholder="203.0.113.10"
           required
         />
       </label>
@@ -110,7 +110,7 @@ export function ServerForm({
           className={inputClass}
           value={values.agent_url}
           onChange={(e) => update("agent_url", e.target.value)}
-          placeholder="http://188.245.10.20:9090"
+          placeholder="http://203.0.113.10:9090"
           required
         />
       </label>
