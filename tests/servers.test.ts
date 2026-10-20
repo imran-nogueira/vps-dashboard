@@ -21,7 +21,7 @@ function makeRow(overrides: Partial<ServerRow> = {}): ServerRow {
     vcpu: 2,
     ram_total_gb: 4,
     disk_total_gb: 40,
-    datacenter: "fsn1-dc14",
+    datacenter: "fsn1",
     price_monthly: null,
     hetzner_price_monthly: null,
     created_at: "2026-01-01T00:00:00.000Z",

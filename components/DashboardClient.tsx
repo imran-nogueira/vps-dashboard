@@ -145,9 +145,11 @@ function EmptyState({ onSynced }: { onSynced: () => Promise<void> }) {
     try {
       const res = await fetch("/api/servers/sync", { method: "POST" });
       if (!res.ok) {
-        // Le détail brut de l'API Hetzner (JSON) reste dans la réponse réseau ;
-        // ici un message court qui pointe vers la cause la plus probable.
-        setError("Hetzner sync failed — check HETZNER_API_TOKEN.");
+        // La route renvoie la vraie cause (statut + message Hetzner) dans `error`.
+        const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
+        setError(
+          typeof body?.error === "string" ? `Hetzner sync failed: ${body.error}` : "Hetzner sync failed.",
+        );
         return;
       }
       const { synced } = (await res.json()) as { synced: number };

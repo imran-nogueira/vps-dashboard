@@ -10,6 +10,7 @@ export async function POST() {
     hetznerServers = await listServers();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Hetzner API request failed";
+    console.error("[sync] Hetzner server list failed:", error);
     return NextResponse.json({ error: message }, { status: 502 });
   }
 
@@ -20,8 +21,12 @@ export async function POST() {
   for (const server of hetznerServers) {
     const priceCacheKey = `${server.serverType}:${server.locationName}`;
     if (!priceCache.has(priceCacheKey)) {
+      // A missing price must not block the sync, but shouldn't go unnoticed.
       const price = await getMonthlyPrice(server.serverType, server.locationName).catch(
-        () => null,
+        (error: unknown) => {
+          console.error(`[sync] Hetzner pricing failed for ${priceCacheKey}:`, error);
+          return null;
+        },
       );
       priceCache.set(priceCacheKey, price);
     }
@@ -35,7 +40,7 @@ export async function POST() {
       vcpu: server.vcpu,
       ramTotalGb: server.ramGb,
       diskTotalGb: server.diskGb,
-      datacenter: server.datacenter,
+      datacenter: server.locationName,
       hetznerPriceMonthly: priceCache.get(priceCacheKey) ?? null,
     });
   }

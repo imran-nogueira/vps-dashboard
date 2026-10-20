@@ -32,7 +32,7 @@ function makeView(overrides: Partial<ServerView> = {}): ServerView {
     agent_url: "http://1.2.3.4:9090",
     server_type: "cx22",
     vcpu: 2,
-    datacenter: "fsn1-dc14",
+    datacenter: "fsn1",
     price_monthly: null,
     status: "online",
     specs: { ramGb: 4, diskGb: 40 },

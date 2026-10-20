@@ -9,7 +9,8 @@ export interface HetznerServer {
   vcpu: number;
   ramGb: number;
   diskGb: number;
-  datacenter: string;
+  // Location name, e.g. "nbg1". Stored in the `datacenter` DB column since the
+  // API dropped datacenters for servers (1 July 2026).
   locationName: string;
 }
 
@@ -31,6 +32,20 @@ function getToken(): string {
   return token;
 }
 
+// Hetzner errors look like `{ "error": { "code": "...", "message": "..." } }`;
+// keep code + message readable, fall back to the raw body otherwise.
+function describeError(body: string): string {
+  try {
+    const { error } = JSON.parse(body) as { error?: { code?: string; message?: string } };
+    if (error?.code || error?.message) {
+      return [error.code, error.message].filter(Boolean).join(" — ");
+    }
+  } catch {
+    // Not JSON: use the body as is.
+  }
+  return body.slice(0, 300);
+}
+
 async function hetznerFetch(pathname: string): Promise<unknown> {
   const res = await fetch(`${HETZNER_API_BASE}${pathname}`, {
     headers: { Authorization: `Bearer ${getToken()}` },
@@ -39,7 +54,7 @@ async function hetznerFetch(pathname: string): Promise<unknown> {
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Hetzner API ${pathname} failed: ${res.status} ${body}`);
+    throw new Error(`Hetzner API ${pathname} failed: ${res.status} ${describeError(body)}`);
   }
 
   return res.json();
@@ -55,22 +70,28 @@ export async function listServers(): Promise<HetznerServer[]> {
         ipv6: { ip: string } | null;
       };
       server_type: { name: string; cores: number; memory: number; disk: number };
-      datacenter: { name: string; location: { name: string } };
+      location?: { name: string };
     }>;
   };
 
-  return data.servers.map((s) => ({
-    id: s.id,
-    name: s.name,
-    publicIpv4: s.public_net.ipv4?.ip ?? null,
-    publicIpv6: s.public_net.ipv6?.ip ?? null,
-    serverType: s.server_type.name,
-    vcpu: s.server_type.cores,
-    ramGb: s.server_type.memory,
-    diskGb: s.server_type.disk,
-    datacenter: s.datacenter.name,
-    locationName: s.datacenter.location.name,
-  }));
+  return data.servers.map((s) => {
+    if (!s.location?.name) {
+      throw new Error(
+        `Hetzner API /servers: server ${s.id} (${s.name}) has no location — response format changed?`,
+      );
+    }
+    return {
+      id: s.id,
+      name: s.name,
+      publicIpv4: s.public_net.ipv4?.ip ?? null,
+      publicIpv6: s.public_net.ipv6?.ip ?? null,
+      serverType: s.server_type.name,
+      vcpu: s.server_type.cores,
+      ramGb: s.server_type.memory,
+      diskGb: s.server_type.disk,
+      locationName: s.location.name,
+    };
+  });
 }
 
 // Returns the monthly gross price (in the account's billing currency) for a
