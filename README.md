@@ -59,26 +59,42 @@ The agent is a single zero-dependency Node.js file
 bearer token. Install it with:
 
 ```bash
-scp agent/install-agent.sh root@<vps-ip>:/root/
-ssh root@<vps-ip> 'bash install-agent.sh'
+scp agent/install-agent.sh <user>@<vps-ip>:
+ssh -t <user>@<vps-ip> 'sudo bash install-agent.sh'
 ```
 
-This requires Node.js to already be installed on the VPS. The script:
+This requires a system-wide Node.js >= 16 on the VPS (`sudo apt install nodejs`
+is enough on Ubuntu 24.04: the agent only uses built-in modules). nvm installs
+under `/home` or `/root` and the snap package won't work under the sandbox
+below; the script refuses them. The script:
 
 - copies the agent to `/opt/vps-agent/agent.js`
-- generates a random token (or use one you provide: `bash install-agent.sh <token>`)
+- generates a random token, keeps the existing one on re-install, and stores
+  it in `/etc/vps-agent/agent.env` (root-only) — it is never printed. To impose
+  your own, pipe it on stdin, never as an argument (sudo logs command lines):
+  `printf '%s' "$TOKEN" | ssh <user>@<vps-ip> 'sudo bash install-agent.sh -'`
 - creates and starts a `vps-agent` systemd service, enabled on boot, listening
-  on port `9090` by default (override with `PORT=xxxx bash install-agent.sh`)
-- prints the **Agent URL** and **Agent token** at the end
+  on port `9090` by default (override with `sudo PORT=xxxx bash install-agent.sh`,
+  above 1024), and fails unless the agent actually answers on `/health`
+- prints the **Agent URL** (the Tailscale IP when Tailscale is installed) and
+  the command to read the token
 
-Copy those two values into the dashboard's **Settings** page for that server
-(add a new one, or edit one synced from Hetzner).
+The service does **not** run as root: it uses a throwaway unprivileged user
+(`DynamicUser=yes`) with `NoNewPrivileges`, `ProtectSystem=strict`, no
+capabilities and a restricted syscall set — reading `/proc/meminfo` and
+running `df` need nothing more. When Tailscale is installed, systemd also
+drops any traffic to the agent that doesn't come from the tailnet or
+loopback (`IPAddressDeny`/`IPAddressAllow`), whatever the host firewall says.
+Check the sandbox with `systemd-analyze security vps-agent`.
+
+Copy the URL and the token into the dashboard's **Settings** page for that
+server (add a new one, or edit one synced from Hetzner).
 
 Check the agent later with:
 
 ```bash
-ssh root@<vps-ip> systemctl status vps-agent
-ssh root@<vps-ip> curl -H "Authorization: Bearer <token>" http://localhost:9090/health
+ssh <user>@<vps-ip> systemctl status vps-agent
+ssh -t <user>@<vps-ip> 'sudo sh -c ". /etc/vps-agent/agent.env && curl -s -H \"Authorization: Bearer \$VPS_AGENT_TOKEN\" http://localhost:9090/health"'
 ```
 
 ## 6. Configure the agent token in the dashboard

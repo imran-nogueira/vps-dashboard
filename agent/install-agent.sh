@@ -2,11 +2,20 @@
 # Installs the VPS Dashboard health agent on this machine.
 #
 # Usage:
-#   scp agent/install-agent.sh root@<vps-ip>:/root/
-#   ssh root@<vps-ip> 'bash install-agent.sh [token]'
+#   scp agent/install-agent.sh <user>@<vps-ip>:
+#   ssh -t <user>@<vps-ip> 'sudo bash install-agent.sh'
 #
-# If no token is given, one is generated and printed at the end — put it
-# (and this VPS's URL) into the dashboard's Settings page.
+# To impose a token instead of generating one, pipe it on stdin (never as an
+# argument: sudo logs the command line and `ps` shows it):
+#   printf '%s' "$TOKEN" | ssh <user>@<vps-ip> 'sudo bash install-agent.sh -'
+#
+# The script needs root to install the systemd service, but the agent itself
+# runs as an unprivileged, throwaway user (DynamicUser) in a read-only,
+# sandboxed view of the system: reading /proc/meminfo and running `df` needs
+# no privileges at all.
+#
+# The token lives in /etc/vps-agent/agent.env (root-only, 0600) and is never
+# printed. An existing one is kept on re-install.
 set -euo pipefail
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -16,13 +25,55 @@ fi
 
 if ! command -v node >/dev/null 2>&1; then
   echo "Node.js is required but was not found on this machine." >&2
-  echo "Install Node.js first (e.g. via https://github.com/nodesource/distributions), then re-run this script." >&2
+  echo "Install Node.js >= 16 first (e.g. 'apt install nodejs'), then re-run this script." >&2
+  exit 1
+fi
+
+# Resolve symlinks: a /usr/local/bin/node pointing into /root/.nvm would pass
+# a check on the link itself but be hidden from the service.
+NODE_BIN="$(readlink -f "$(command -v node)")"
+case "$NODE_BIN" in
+  /home/* | /root/*)
+    # ProtectHome=yes hides these from the service (nvm installs live there).
+    echo "Node.js must be installed system-wide, not in $NODE_BIN." >&2
+    exit 1
+    ;;
+  /snap/*)
+    # snap-confine is setuid, which NoNewPrivileges neutralizes.
+    echo "Node.js from snap can't run under NoNewPrivileges; use the distro package." >&2
+    exit 1
+    ;;
+esac
+
+NODE_MAJOR="$("$NODE_BIN" -p 'process.versions.node.split(".")[0]')"
+if [ "$NODE_MAJOR" -lt 16 ]; then
+  # The agent uses `node:`-prefixed built-in modules.
+  echo "Node.js >= 16 is required (found $("$NODE_BIN" -v))." >&2
   exit 1
 fi
 
 INSTALL_DIR="/opt/vps-agent"
+CONFIG_DIR="/etc/vps-agent"
+ENV_FILE="$CONFIG_DIR/agent.env"
+UNIT_FILE="/etc/systemd/system/vps-agent.service"
 PORT="${PORT:-9090}"
-TOKEN="${1:-}"
+TOKEN=""
+
+if [ "$PORT" -le 1024 ]; then
+  echo "PORT must be above 1024: the agent has no capability to bind lower." >&2
+  exit 1
+fi
+
+if [ "${1:-}" = "-" ]; then
+  IFS= read -r TOKEN || true
+elif [ -n "${1:-}" ]; then
+  echo "Pass the token on stdin with '-', not as an argument (see usage)." >&2
+  exit 1
+elif [ -f "$ENV_FILE" ]; then
+  TOKEN="$(sed -n 's/^VPS_AGENT_TOKEN=//p' "$ENV_FILE")"
+fi
+# Tokens left in the unit file by older versions of this script were
+# world-readable: they are deliberately not migrated, a new one is generated.
 
 if [ -z "$TOKEN" ]; then
   if command -v openssl >/dev/null 2>&1; then
@@ -32,7 +83,17 @@ if [ -z "$TOKEN" ]; then
   fi
 fi
 
+# systemd's EnvironmentFile parsing strips quotes and backslashes: restrict the
+# token to characters it passes through unchanged.
+if ! [[ "$TOKEN" =~ ^[A-Za-z0-9._~+/=-]{16,}$ ]]; then
+  echo "Token must be at least 16 characters from [A-Za-z0-9._~+/=-]." >&2
+  exit 1
+fi
+
 mkdir -p "$INSTALL_DIR"
+install -d -m 0700 "$CONFIG_DIR"
+(umask 077 && printf 'VPS_AGENT_TOKEN=%s\n' "$TOKEN" > "$ENV_FILE")
+unset TOKEN
 
 cat > "$INSTALL_DIR/agent.js" << 'AGENT_JS_EOF'
 "use strict";
@@ -170,37 +231,97 @@ if (require.main === module) {
 }
 AGENT_JS_EOF
 
-cat > "$INSTALL_DIR/vps-agent.service" << SERVICE_EOF
+chmod 0644 "$INSTALL_DIR/agent.js"
+# Leftover from older versions of this script, which embedded the token.
+rm -f "$INSTALL_DIR/vps-agent.service"
+
+# On a tailnet, the agent should be reached over Tailscale, not the public IP,
+# and the service only accepts tailnet and loopback traffic. This holds even if
+# the host firewall is off or misconfigured.
+IP_FILTER=""
+SERVER_IP="$(tailscale ip -4 2>/dev/null | head -n1 || true)"
+if [ -n "$SERVER_IP" ]; then
+  IP_FILTER="IPAddressDeny=any
+IPAddressAllow=localhost 100.64.0.0/10 fd7a:115c:a1e0::/48"
+else
+  SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+fi
+
+# systemd reads EnvironmentFile as root before dropping privileges, so the
+# token file stays root-only while the agent still gets the variable.
+cat > "$UNIT_FILE" << SERVICE_EOF
 [Unit]
 Description=VPS Dashboard health agent
 After=network.target
 
 [Service]
-Type=simple
-ExecStart=$(command -v node) $INSTALL_DIR/agent.js
-Environment=VPS_AGENT_TOKEN=$TOKEN
+Type=exec
+ExecStart=$NODE_BIN $INSTALL_DIR/agent.js
+EnvironmentFile=$ENV_FILE
 Environment=PORT=$PORT
 Restart=on-failure
 RestartSec=2
-User=root
+
+# Unprivileged, sandboxed: the agent only reads /proc/meminfo, runs df and
+# listens on an unprivileged port. Keep PORT above 1024.
+DynamicUser=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectProc=invisible
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+# V8 calls pkey_alloc (@pkey) at startup. Any other filtered syscall fails
+# with EPERM instead of killing Node, which has fallbacks for them.
+SystemCallFilter=@system-service @pkey
+SystemCallErrorNumber=EPERM
+UMask=0077
+$IP_FILTER
 
 [Install]
 WantedBy=multi-user.target
 SERVICE_EOF
-
-cp "$INSTALL_DIR/vps-agent.service" /etc/systemd/system/vps-agent.service
+chmod 0644 "$UNIT_FILE"
 
 systemctl daemon-reload
 systemctl enable vps-agent
 systemctl restart vps-agent
 
-SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+# A started unit isn't a working agent: wait for /health to answer 401 (no
+# token sent) before reporting success.
+HEALTH_CHECK='require("node:http").get({ host: "127.0.0.1", port: process.argv[1], path: "/health", timeout: 1000 },
+  (res) => process.exit(res.statusCode === 401 ? 0 : 1)).on("error", () => process.exit(1))'
+for _ in $(seq 1 10); do
+  if "$NODE_BIN" -e "$HEALTH_CHECK" "$PORT" && systemctl is-active --quiet vps-agent; then
+    HEALTHY=1
+    break
+  fi
+  sleep 1
+done
+if [ -z "${HEALTHY:-}" ]; then
+  echo "vps-agent did not answer on port $PORT. See: journalctl -u vps-agent -n 20" >&2
+  exit 1
+fi
 
 echo ""
-echo "vps-agent installed and running on port $PORT."
+echo "vps-agent installed and answering on port $PORT."
 echo ""
 echo "Agent URL:   http://${SERVER_IP:-<this-vps-ip>}:$PORT"
-echo "Agent token: $TOKEN"
+echo "Agent token: stored in $ENV_FILE (root-only), read it with:"
+echo "  sudo sed -n 's/^VPS_AGENT_TOKEN=//p' $ENV_FILE"
 echo ""
 echo "Add these in the dashboard's Settings page. Check status with:"
 echo "  systemctl status vps-agent"
